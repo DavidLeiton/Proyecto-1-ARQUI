@@ -35,6 +35,8 @@ _start:
     mov rdi, rax
     call draw_graph
 
+   
+
 .exit_ok:
 
     ; Salir del programa

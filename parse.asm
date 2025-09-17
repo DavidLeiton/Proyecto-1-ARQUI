@@ -97,10 +97,12 @@ load_inventory:
     cmp rcx, 0
     je .done_parse
     mov al, [rsi]
-    cmp al, ':' 	;verificar si esta :
-    je .colon_found
     cmp al, 10            ; si llega a fin de linea sin ':', salta esa linea
     je .skip_line
+    cmp al, 13
+    je .skip_line
+    cmp al, ':' 	;verificar si esta :
+    je .colon_found
     inc rsi
     dec rcx
     jmp .find_colon

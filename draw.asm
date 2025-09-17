@@ -19,6 +19,7 @@ reset_seq:      db 27, '[', '0', 'm'     ; ESC[0m, secuencia ANSI
 reset_len       equ $-reset_seq      ;Sirve para restaurar colores
 default_char:   db '*'			;si no se usa barra
 default_char_len equ 1			;longitud fija 1 B
+      
 
 section .bss
 escbuf:         resb 32    ; buffer para construir secuencia ESC[...]m
@@ -26,6 +27,7 @@ numbuf:         resb 16    ; buffer temporal para conversión uint->ascii
 
 section .text
     global draw_graph
+
     extern names, quantities ;vienen de parse
     extern cfg_char, cfg_char_len, cfg_color_barra, cfg_color_fondo
 
@@ -68,6 +70,8 @@ draw_graph:
     xor rdx, rdx               ; rdx = name_len contador
 	; Aqui vamos a iteramos bytes desde name_ptr hasta \0 o Max name len
 .find_name_len:
+    cmp rcx, 0
+    je .name_len_done
     mov al, [rsi]
     cmp al, 0
     je .name_len_done
@@ -76,7 +80,7 @@ draw_graph:
     dec rcx
     jnz .find_name_len
 .name_len_done:
-    ; r13 = name_ptr, rdx = name_len
+    ; ...
 
     ; -- Imprimir name ---
     mov rax, 1                 ; sys_write
@@ -104,22 +108,22 @@ draw_graph:
 
     ; escribir color_barra (integer -> ascii) en escbuf
     mov eax, dword [rel cfg_color_barra]
-    mov rax, rax               ; valor en rax
+    ;mov rax, rax               ; valor en rax
     call .uint_to_ascii        ; entrada: rax=value, rdi=dest; salida: rdi=dest_after, rdx=len
     ; rdi ya avanzado, rdx = digits len
 
     ; escribir ';'
-    mov byte [rdi], ';'
+    mov byte [rdi], 'm'
     inc rdi
 
     ; escribir color_fondo
-    mov eax, dword [rel cfg_color_fondo]   ; es leido
-    mov rax, rax
-    call .uint_to_ascii
+    ;mov eax, dword [rel cfg_color_fondo]   ; es leido
+    ;mov rax, rax
+    ;call .uint_to_ascii
 
     ; escribir 'm'
-    mov byte [rdi], 'm'
-    inc rdi
+    ;mov byte [rdi], 'm'
+    ;inc rdi
 
     ; calcular longitud y hacer sys_write
     mov rsi, r8                ; puntero de inicio
@@ -248,3 +252,5 @@ draw_graph:
     mov rdx, rcx            ; rdx = contador
     mov rdi, rbx            ; actualiza rdi a destino_despues
     ret
+
+

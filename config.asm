@@ -35,6 +35,10 @@ readbuf:            resb BUFFER_SIZE  ;al buffer bss lo llenamos con file_read
 
 section .text
     global load_config
+    global cfg_char
+    global cfg_char_len
+    global cfg_color_barra
+    global cfg_color_fondo
     extern file_open, file_read, file_close
 
 ; -------------------

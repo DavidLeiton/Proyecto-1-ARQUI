@@ -1,0 +1,7 @@
+execve("./visualizador", ["./visualizador"], 0x7ffed81f9530 /* 49 vars */) = 0
+open("config.ini", O_RDONLY)            = 3
+read(3, "caracter_barra:\342\226\210\ncolor_barra:9"..., 512) = 49
+close(3)                                = 0
+open("inventario.txt", O_ACCMODE|O_EXCL|O_NOCTTY|O_APPEND|O_DSYNC|__O_TMPFILE|FASYNC, 016) = -1 EINVAL (Argumento inválido)
+exit(1)                                 = ?
++++ exited with 1 +++

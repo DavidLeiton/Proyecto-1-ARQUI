@@ -18,6 +18,9 @@ readbuf:     times BUFFER_SIZE db 0; leemos archivo
 
 section .text
     global load_inventory ;para que main la llame
+    global names
+    global quantities
+    global item_count
     extern file_open, file_read, file_close ;para io
 
 ; -------------------------------
@@ -33,6 +36,10 @@ load_inventory:
     push r13
     push r14
     push r15; el push para salvarlos, se deben restaurar
+
+	;limpiar rsi y rdx
+    mov rsi, 0 ;O_RONLY
+    mov rdx, 0
 
     ; abrir archivo (file_open espera filename en rdi)rdi tiene el puntero
     call file_open

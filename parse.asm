@@ -73,9 +73,7 @@ load_inventory:
     cmp al, 10 ;salto de lineas iniciales en 10 o 13 para evitar lineas vacias
     je .advance_char1
     cmp al, 13
-    je .advance_char1
-    cmp al, ':'
-    je .skip_line  
+    je .advance_char1 
     jmp .set_start
 .advance_char1:  ; incrementa rsi y decrementa rcx hasta encontrar caracter valido o quedartse sin bytes
     inc rsi
@@ -86,6 +84,13 @@ load_inventory:
 
 .set_start:
     mov rbx, rsi          ; rbx = product_start(puntero al incio de product)
+    mov al, [rsi]
+    cmp al, ':'
+    je .skip_line
+    cmp al, 0
+    je .done_parse
+    ;si no seguimos buscando
+    jmp .find_colon     
 
 ; buscar ':' que separa producto de cantidad
 .find_colon:

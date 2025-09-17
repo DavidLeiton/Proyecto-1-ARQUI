@@ -67,11 +67,15 @@ load_inventory:
 
     ; saltar caracteres iniciales newline/carriage returns
 .skip_leading:
+    cmp rcx, 0 
+    je .done_parse
     mov al, [rsi]
     cmp al, 10 ;salto de lineas iniciales en 10 o 13 para evitar lineas vacias
     je .advance_char1
     cmp al, 13
     je .advance_char1
+    cmp al, ':'
+    je .skip_line  
     jmp .set_start
 .advance_char1:  ; incrementa rsi y decrementa rcx hasta encontrar caracter valido o quedartse sin bytes
     inc rsi

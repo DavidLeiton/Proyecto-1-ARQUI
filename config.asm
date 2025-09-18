@@ -125,48 +125,57 @@ load_config:
 
 .colon_found:
     ; calcular token_len = rsi - rbx (excluye ':')
+    xor rax, rax ;limpiado
     mov rax, rsi
     sub rax, rbx        ; rax = token_len (posible con espacios)
+    mov r10, rax
+    mov r9, rbx      ;guardar valores originales
     ; trim trailing spaces: si el último char antes de ':' es ' ' reduce len
     ; rdx = token_len, longitud sin espacios finales
-    mov rdx, rax
-    cmp rdx, 0
-    je .process_key
-    lea r8, [rsi - 1]   ; r8 = ultimo caracter antes de  ':'
-.trim_trailing:
-    mov bl, [r8]
-    cmp bl, ' '
-    jne .trim_done
-    dec r8
-    dec rdx
-    cmp rdx, 0
-    jne .trim_trailing
-.trim_done:
+ ;   mov rdx, rax
+  ;  cmp rdx, 0
+    jmp .process_key
+   ; lea r8, [rsi - 1]   ; r8 = ultimo caracter antes de  ':'
+;.trim_trailing:
+;    mov al, [r8]
+;    cmp al, ' '
+;    jne .trim_done
+;    dec r8
+;    dec rdx
+;    cmp rdx, 0
+;    jne .trim_trailing
+;.trim_done:
     ; Ahora rbx = token start, rdx = trimmed token length
     ; Guardar el puntero de token en rsi_temp para comparar despues
-    mov r9, rbx         ; r9 = token_start
-    mov r10, rdx        ; r10 = token_len
+;    mov r9, rbx         ; r9 = token_start
+;    mov r10, rdx        ; r10 = token_len
 
 .process_key:
+    push r9
+    push r10
     ; saltar ':' al valor
     inc rsi
     dec rcx
 
+    ;pop r10
+    ;pop r9
+
     ; Omitir espacios después de ':'
 .skip_spaces_after_colon:
     cmp rcx, 0
-    je .process_value
+    je .process_value_pop
     mov al, [rsi]  ;rsi para apuntar a valor de inicio y saltar espacios
     cmp al, ' '
-    jne .process_value
+    jne .process_value_pop
     inc rsi
     dec rcx
     jmp .skip_spaces_after_colon
 
-.process_value:
+.process_value_pop:
     ; Ahora r9=token_start, r10=token_len, rsi apunta al valor inicial, rcx  bytes restantes
     ; Comparar token con cada llave conocida
-
+    pop r10
+    pop r9
     ; --- comparar con key_caracter ---
     mov rax, r10
     cmp rax, key_caracter_len
@@ -188,10 +197,13 @@ load_config:
     
 	;necesitamos el valor de rsi en process_value
    
-    lea rsi, [r9 +  r10] ; r9 + r10 , posicion antes de : , pero rsi al estar en valor inicial, para mayor seguridad recalculamos r9+r10+1, omitiendo : y espacios
-    lea rsi, [r9 + r10] ; puntos de ':' -> se mueve uno ':'
+    ;lea rsi, [r9 +  r10] ; r9 + r10 , posicion antes de : , pero rsi al estar en valor inicial, para mayor seguridad recalculamos r9+r10+1, omitiendo : y espacios
+    ;lea rsi, [r9 + r10] ; puntos de ':' -> se mueve uno ':'
+ ;se cambio de esto para ver si se logra
+    mov rsi, r9
+    add rsi, r10
     inc rsi
-    sub rcx, 0          ; rcx sin cambiar
+    ;sub rcx, 0          ; rcx sin cambiar
     
 .skip_spaces_for_char:
     cmp rcx, 0

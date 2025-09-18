@@ -111,6 +111,7 @@ load_inventory:
 
 .colon_found:
     ; longitud producto = rsi - rbx
+    ;xor rax, rax  ;limpiar
     mov rax, rsi
     sub rax, rbx          ; rax = product_len
     ; limitar a MAX_NAME_LEN - 1 (dejamos 1 byte para '\0')

@@ -113,17 +113,17 @@ draw_graph:
     ; rdi ya avanzado, rdx = digits len
 
     ; escribir ';'
-    mov byte [rdi], 'm'
+    mov byte [rdi], ';'
     inc rdi
 
     ; escribir color_fondo
-    ;mov eax, dword [rel cfg_color_fondo]   ; es leido
+    mov eax, dword [rel cfg_color_fondo]   ; es leido
     ;mov rax, rax
-    ;call .uint_to_ascii
+    call .uint_to_ascii
 
     ; escribir 'm'
-    ;mov byte [rdi], 'm'
-    ;inc rdi
+    mov byte [rdi], 'm'
+    inc rdi
 
     ; calcular longitud y hacer sys_write
     mov rsi, r8                ; puntero de inicio

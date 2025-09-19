@@ -98,8 +98,8 @@ draw_graph:
     syscall
 
     ; Aqui vamos a construir y escribir secuencia ANSI de color: ESC[<fg>;<bg>m] 
-    lea r8, [rel escbuf]       ; r8 = escbuf inicia
-    mov rdi, r8                ; rdi = ecribe puntero en escbuf (buffer temporal)
+    lea rdi, [rel escbuf]       ; r8 = escbuf inicia
+    mov r8, rdi                ; rdi = ecribe puntero en escbuf (buffer temporal)
 
     ; ESC '['
     mov byte [rdi], 27   ;se escribe Esc y [
@@ -214,75 +214,101 @@ draw_graph:
 
 .uint_to_ascii:
 
-    push r15   ; rdi antes
+    push r14   ;antes r15 rdi antes
     push rbx
     push rcx
     push rsi
 
     ;lea rdi, [rel numbuf]
     mov rbx, rdi
+    lea rsi, [rel numbuf]
+    add rsi, 15
+    mov byte [rsi], 0
+    mov rcx, 10
     
-   ; mov rsi, numbuf
-   ; mov rcx, rdx
-   ; rep movsb  ;copiar
-
-    
-    cmp rax, 0
-    jne .itoa_nonzero
-    ; escribir '0'
-    mov byte [rbx], '0'
-    lea rdi, [rbx + 1]
-    ;inc rdi
-    mov rdx, 1
-   ; ret
-    jmp .copy_final
-
-.itoa_nonzero:
-    lea rsi, [rel numbuf]   ; rsi = buffer temporal de inicio
-    xor rcx, rcx            ; rcx = digito contador
-
-.itoa_loop:
-    xor rdx, rdx            ; limpia rdx por  div
-    mov r15, 10
-    div r15                 ; rax = quot, rdx = rem
-    add dl, '0'             ; convertir  rem -> ascii digito en  dl
-    mov [rsi], dl
-    inc rsi
-    inc rcx
-    test rax, rax;cmp rax, 0
-    jne .itoa_loop
-
-    ; rcx = digit count, rsi = ptr despues del ultimo digito guardadoc(digitos guardados reservados)
-    mov rdx, rcx            ; guarda contador en r14
-    dec rsi                 ; punto al ultimo digito 
-
-    mov rdi, rbx            ; puntero de destino en rbx
-
-.rev_copy_loop:
-    mov al, [rsi]
-    mov [rsi], al ; antes rbx
+    ;caso especial cero, lo comentado estaba antes
+    test rax, rax
+    jnz .convert_loop
+    mov byte [rsi-1], '0'
     dec rsi
-    inc rdi
-    dec rcx    ;r14
-    jnz .rev_copy_loop
-    
+    mov rdx, 1
+    jmp .copy_digits
 
-.copy_final:
+.convert_loop:
+    xor rdx, rdx
+    div rcx
+    add dl, '0'
+    dec rsi
+    mov [rsi], dl
+    test rax, rax
+    jnz .convert_loop
+
+    ;calcular longitud
+
+    lea rdx, [rel numbuf+16]
+    sub rdx, rsi
+.copy_digits:
+    mov rcx, rdx
+    mov rdi, rbx
+    rep movsb
+
+    mov rdi, rbx
+    add rdi, rdx
+   
+    pop r14
     pop rsi
     pop rcx
     pop rbx
-    pop r15
     ret
-    ;push rdi
-    ;lea rsi, [rel numbuf]
-    ;mov rcx, rdx
-    ;rep movsb
-    ; rbx ahora destino
-    ;mov rdx, rcx            ; rdx = contador
-    ;mov rdi, rbx            ; actualiza rdi a destino_despues
-    ;pop rdi
-    ;add rdi, rdx
-    ;ret
+
+    
+    ;cmp rax, 0
+    ;jne .itoa_nonzero
+    ; escribir '0'
+    ;mov byte [rbx], '0'
+    ;lea rdi, [rbx + 1]
+    ;inc rdi
+    ;mov rdx, 1
+   ; ret
+    ;jmp .copy_final
+
+;.itoa_nonzero:
+;    lea rsi, [rel numbuf]   ; rsi = buffer temporal de inicio
+;    xor rcx, rcx            ; rcx = digito contador
+
+;.itoa_loop:
+;    xor rdx, rdx            ; limpia rdx por  div
+;    mov r15, 10
+;    div r15                 ; rax = quot, rdx = rem
+;    add dl, '0'             ; convertir  rem -> ascii digito en  dl
+;    mov [rsi], dl
+;    inc rsi
+;    inc rcx
+;    test rax, rax;cmp rax, 0
+;    jne .itoa_loop
+
+    ; rcx = digit count, rsi = ptr despues del ultimo digito guardadoc(digitos guardados reservados)
+ ;   mov rdx, rcx            ; guarda contador en r14
+ ;   dec rsi                 ; punto al ultimo digito 
+
+ ;   mov rdi, rbx            ; puntero de destino en rbx
+
+;.rev_copy_loop:
+;    mov al, [rsi]
+;    mov [rsi], al ; antes rbx
+;    dec rsi
+;    inc rdi
+;    dec rcx    ;r14
+;    jnz .rev_copy_loop
+    
+
+;.copy_final:
+;    pop rsi
+;    pop rcx
+;    pop rbx
+;    pop r15
+;    ret
+   
 
 
 

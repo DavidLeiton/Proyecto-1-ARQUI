@@ -1,0 +1,2 @@
+manzanas:12
+naranjas:25

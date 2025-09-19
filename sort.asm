@@ -1,159 +1,144 @@
-; sort.asm
-; sort_inventory(count)
-; Ordena alfabeticamente names[] (tamaño fijo MAX_NAME_LEN) y hace swap paralelo de quantities[]
-; Bubble Sort por simplicidad.
-;Mismas variables que en parse
-%define MAX_ITEMS 32
-%define MAX_NAME_LEN 32
-%define MAX_NAME_SHIFT 5    ; 2^5 = 32
+; sort.asm  - Selection sort, seguro para names[] (bloques de 32 bytes) y quantities[] (dwords)
+%define MAX_NAME_LEN    32
+%define MAX_NAME_SHIFT   5   ; 2^5 = 32
 
 section .bss
-temp_name:    resb MAX_NAME_LEN    ; buffer temporal para hacer swap de nombres
+temp_name:    resb MAX_NAME_LEN
 
 section .text
-    global sort_inventory  ;nueva funcion
-    extern names, quantities      ; definidos en parse.asm
+    global sort_inventory
+    extern names, quantities
 
-; -----------------------------------
-; Entrada:
-;   RDI = count (número de items)
-; Salida:
-;   RAX = count (devuelve el número de items)
-;----------------------------------
 sort_inventory:
-    ; --- prologo: preservar registros callee-saved que usaremos ---
+    ; Prologo - preservar callee-saved
     push rbp
     mov rbp, rsp
-	;salvamos registros que vamos a usar
-    push rbx  
     push r12
     push r13
     push r14
     push r15
+    push rbx
 
-    mov r15, rdi        ; r15 = n (count)
-    ; Si n <= 1 no hay nada que ordenar
-    cmp r15, 1          ; si hay 0 o 1 no ordena
-    jle .done_sort
-	;estructura bubble sort
-    xor r12, r12        ; r12 = i (outer index) = 0
+    mov r12, rdi        ; r12 = count
+    cmp r12, 2
+    jl .done            ; 0 o 1 elemento -> nada que ordenar
 
-.outer_loop:
-    ; inner_limit = n - 1 - i
-    mov r13, r15
-    dec r13              ; r13 = n-1
-    sub r13, r12         ; r13 = n-1-i
-    cmp r13, 0
-    jle .done_sort       ; si ya no hay pares que comparar, terminamos
+    ; bases
+    lea r13, [rel names]      ; r13 = base names
+    lea r14, [rel quantities] ; r14 = base quantities
 
-    xor r11, r11         ; r11 = j = 0 (inner index)
+    xor rbx, rbx        ; rbx = i = 0
 
-.inner_loop:;recorre los j 0...
-    ; --- calcular addr_j = names + j * MAX_NAME_LEN ---
-    mov rax, r11
-    shl rax, MAX_NAME_SHIFT    ; rax = j * MAX_NAME_LEN
-    lea rbx, [rel names]	
-    add rax, rbx               ; rax = &names[j] 
+.outer_i:
+    mov rax, r12
+    dec rax
+    cmp rbx, rax
+    jge .done      ; si i >= count-1, terminado
 
-    ; addr_j1 = addr_j + MAX_NAME_LEN
-    lea rdx, [rax + MAX_NAME_LEN]  ; rdx = &names[j+1]
+    ; min_index = i
+    mov r15, rbx         ; r15 = min_index
 
-    ; --- comparar strings names[j] y names[j+1] byte a byte ---
-    mov rcx, MAX_NAME_LEN   ;limte de longitud
-	;punteros a comparar
-    mov rsi, rax    ; p1
-    mov rdi, rdx    ; p2
+    ; j = i+1
+    mov rcx, rbx
+    inc rcx              ; rcx = j
 
-.compare_loop:
-    mov bl, [rsi]	;lee byte de cada string
-    mov al, [rdi]
-    cmp bl, al		;iguales, next
-    je .cmp_equal_char
-    ; uso comparación UNSIGNED: si bl > al entonces names[j] > names[j+1] -> swap
-    ja .do_swap
-    ; bl < al -> no swap
-    jmp .no_swap
+.find_min_loop:
+    cmp rcx, r12
+    jge .found_min
 
-.cmp_equal_char:
-    cmp bl, 0        ; si llegamos a '\0' y son iguales => strings iguales
+    ; addr_min = names + min_index*32 -> use rsi
+    mov rax, r15
+    shl rax, MAX_NAME_SHIFT
+    lea rsi, [r13 + rax]    ; rsi = &names[min_index]
+
+    ; addr_j = names + j*32 -> use rdi
+    mov rax, rcx
+    shl rax, MAX_NAME_SHIFT
+    lea rdi, [r13 + rax]    ; rdi = &names[j]
+
+    ; compare strings rsi vs rdi, limit MAX_NAME_LEN
+    mov r8, MAX_NAME_LEN
+.compare_chars:
+    mov al, [rsi]
+    mov dl, [rdi]
+    cmp al, dl
+    jb .j_not_smaller      ; if names[j] > names[min] -> update min
+    ja .update_min        ; if names[j] < names[min] -> keep min
+    ; equal char:
+    test al, al
+    jz .chars_equal   ; both terminated -> equal
+    inc rsi
+    inc rdi
+    dec r8
+    jnz .compare_chars
+    jmp .chars_equal
+
+.update_min:
+    ; j < min -> set min_index = j
+    mov r15, rcx
+    jmp .next_j
+
+.j_not_smaller:
+    ; j > min -> do nothing
+    jmp .next_j
+.chars_equal:
+.next_j:
+    inc rcx
+    jmp .find_min_loop
+
+.found_min:
+    ; if min_index != i -> swap names and quantities
+    cmp r15, rbx
     je .no_swap
-    inc rsi
-    inc rdi
-    dec rcx
-    jnz .compare_loop
-    ; si agotamos MAX_NAME_LEN y todavía todo igual -> no swap
-    jmp .no_swap
 
-.do_swap:
-    ; ---------- swap de nombres (3 copias: j -> temp, j+1 -> j, temp -> j+1) ----------
-    ; copiar names[j] -> temp_name
+    ; --- swap names (3 copies) ---
+    ; src_i = names + i*32  -> rsi
+    mov rax, rbx
+    shl rax, MAX_NAME_SHIFT
+    lea rsi, [r13 + rax]
+    lea rdi, [rel temp_name]
     mov rcx, MAX_NAME_LEN
-    mov rsi, rax        ; src = addr_j
-    lea rdi, [rel temp_name] ; dst = temp_name
-.copy_to_temp:
-    mov al, [rsi]
-    mov [rdi], al
-    inc rsi
-    inc rdi
-    dec rcx
-    jnz .copy_to_temp
+    rep movsb
+    ; src_min = names + min_index*32 -> rdi
+    mov rax, r15
+    shl rax, MAX_NAME_SHIFT
+    lea rsi, [r13 + rax]
+    mov rax, rbx
+    shl rax, MAX_NAME_SHIFT
+    lea rdi, [r13 + rax]
+    mov rcx, MAX_NAME_LEN
+    rep movsb
 
-    ; copiar names[j+1] -> names[j]
-    mov rcx, MAX_NAME_LEN
-    mov rsi, rdx        ; src = addr_j1
-    mov rdi, rax        ; dst = addr_j
-.copy_j1_to_j:
-    mov al, [rsi]
-    mov [rdi], al
-    inc rsi
-    inc rdi
-    dec rcx
-    jnz .copy_j1_to_j
-
-    ; copiar temp_name -> names[j+1]
-    mov rcx, MAX_NAME_LEN
+    ; copy names[i] -> temp_name
     lea rsi, [rel temp_name]
-    mov rdi, rdx
-.copy_temp_to_j1:
-    mov al, [rsi]
-    mov [rdi], al
-    inc rsi
-    inc rdi
-    dec rcx
-    jnz .copy_temp_to_j1
+    mov rax, r15
+    shl rax, MAX_NAME_SHIFT
+    lea rdi, [r13 + rax]
+    mov rcx, MAX_NAME_LEN
+    rep movsb
 
-    ; ---------- swap de quantities (4 bytes cada) ----------
-    ; calcular addr_q = quantities + j*4
-    mov rcx, r11
-    shl rcx, 2           ; rcx = j * 4
-    lea rbx, [rel quantities]
-    add rcx, rbx         ; rcx = &quantities[j]
-    mov eax, dword [rcx] ; eax = qj
-    mov edx, dword [rcx + 4] ; edx = qj1
-    mov dword [rcx], edx
-    mov dword [rcx + 4], eax ;intercambio 
+    ;--swap quantities
+    mov rax, rbx
+    shl rax, 2
+    mov ecx, [r14 + rax]
 
-    ; finished swap -> continue
-    jmp .after_compare
+    mov rdx, r15
+    shl rdx, 2
+    mov edx, [r14 + rdx]
+
+    mov [r14 + rax], edx
+    mov rax, r15
+    shl rax, 2
+    mov [r14 + rax], ecx
 
 .no_swap:
-    ; no swap, continua
-.after_compare:
-    ; incrementar j
-    inc r11
-    ; si j >= inner_limit entonces salir inner loop
-    cmp r11, r13
-    jl .inner_loop
+    inc rbx
+    jmp .outer_i
 
-    ; incrementar i (outer index)
-    inc r12
-    jmp .outer_loop  ;volvemos al outer
+.done:
+    mov rax, r12   ; devolver count en rax por conveniencia
 
-.done_sort:
-    ; devolver count en rax (conveniencia)
-    mov rax, r15
-
-    ; epilogo: restaurar registros
+    ; epilogo - restaurar
     pop r15
     pop r14
     pop r13

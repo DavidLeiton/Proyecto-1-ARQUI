@@ -7,14 +7,24 @@
 %define MAX_NAME_SHIFT 5       ; log2(MAX_NAME_LEN)
 %define BUFFER_SIZE 4096
 
-section .data
+;section .data
 ; arrays
-names:       times MAX_ITEMS * MAX_NAME_LEN db 0 ;i empieza en names + i*Max_name_len
-quantities:  times MAX_ITEMS dd 0 ;array 4 B c/u, quantities[i] guarda int 32b
-item_count:  dd 0;conteo
+;names:       times MAX_ITEMS * MAX_NAME_LEN db 0 ;i empieza en names + i*Max_name_len
+;quantities:  times MAX_ITEMS dd 0 ;array 4 B c/u, quantities[i] guarda int 32b
+;item_count:  dd 0;conteo
 
 ; buffer para lectura
-readbuf:     times BUFFER_SIZE db 0; leemos archivo
+;readbuf:     times BUFFER_SIZE db 0; leemos archivo
+
+section .bss
+
+names:       resb MAX_ITEMS * MAX_NAME_LEN  ;i empieza en names + i*Max_name_len
+quantities:  resd MAX_ITEMS  ;array 4 B c/u, quantities[i] guarda int 32b
+item_count:  resd 1;conteo
+
+; buffer para lectura
+readbuf:     resb BUFFER_SIZE; leemos archivo
+
 
 section .text
     global load_inventory ;para que main la llame
@@ -114,6 +124,7 @@ load_inventory:
     ;xor rax, rax  ;limpiar
     mov rax, rsi
     sub rax, rbx          ; rax = product_len
+    ;dec rax
     ; limitar a MAX_NAME_LEN - 1 (dejamos 1 byte para '\0')
     cmp rax, MAX_NAME_LEN - 1
     jle .calc_dest
@@ -123,25 +134,45 @@ load_inventory:
     ; calcular dir destino: names + index*MAX_NAME_LEN
     mov rdx, r15		;index
     shl rdx, MAX_NAME_SHIFT    ; rdx = index * MAX_NAME_LEN(por 32, si Max..=5)
-    lea rdi, [rel names]
-    add rdi, rdx               ; rdi = apunta al incio de espacio reservado
+    lea r10, [rel names]      ;antes rdi
+    add r10, rdx               ; rdi = apunta al incio de espacio reservado
+    mov r14, r10
+    mov r9, rsi
+    sub r9, rbx
+    
+    cmp r9, MAX_NAME_LEN-1
+    jle .continue_copy
+    mov r9, MAX_NAME_LEN - 1
 
     ; copiar product_len bytes desde rbx a rdi ( r8,r9 temporales)
+.continue_copy:
     mov r8, rbx 		;se copia byte a byte de rbx a rdi(dest)
-    mov r9, rax                ; r9 = len (veces)
+                ; r9 = len (veces)
 .copy_name_loop:  		;pone 0 terminador al final del nombre
+
     cmp r9, 0
     je .term_name
+	
+    ;mov rax, r14               ;rax--posicion de destino
+    ;lea r11, [rel names]       ;r11 inicia el buffer
+    ;sub rax, r11              ; bytes escritos
+    ;cmp rax, MAX_ITEMS * MAX_NAME_LEN -1 ;verifica si nos pasamos
+    ;jae .term_name    
+
     mov al, [r8]
-    mov [rdi], al
+    cmp al, ':'
+    je .term_name
+    mov [r14], al ;antes rdi
     inc r8
-    inc rdi
+    inc r14
     dec r9
+    ;dec rcx
     jmp .copy_name_loop
 .term_name:
-    mov byte [rdi], 0          ; null-terminate
+    mov byte [r14], 0          ; null-terminate
 
     ; saltar ':' y ajustar contador, para pasar a parte numerica
+
     inc rsi
     dec rcx
 
@@ -161,6 +192,13 @@ load_inventory:
 .parse_digits:
     cmp rcx, 0
     je .store_number
+
+    mov rdx, rsi ;rdi pos actul
+    lea r11, [rel readbuf]
+    sub rdx, r11
+    cmp rdx, BUFFER_SIZE - 1
+    jae .store_number
+
     mov bl, [rsi]		;caracter actual
 	;si encuentra \n o \r o no digito, termina el numero
     cmp bl, 10                 ; '\n'

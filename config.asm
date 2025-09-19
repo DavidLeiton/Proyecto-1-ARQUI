@@ -87,6 +87,10 @@ load_config:
 
 .parse_line:
     ; Si no quedan bytes terminamos
+    xor r9, r9  ;resetear
+    xor r10, r10
+
+
     cmp rcx, 0
     je .done
 
@@ -358,8 +362,8 @@ load_config:
 
 .after_key_handled:
     ; saltar hasta fin de línea (si no estamos ya en '\n')
-    xor r9, r9  ;resetear
-    xor r10, r10
+;    xor r9, r9  ;resetear
+;    xor r10, r10
 .skip_to_end_of_line:
     cmp rcx, 0
     je .parse_line

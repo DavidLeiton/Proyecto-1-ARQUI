@@ -1,11 +1,14 @@
 ; main.asm
+;archivo principal que llama el flujo del programa.
 
-
+;datos inicializar variables
 section .data
     filename_cfg db "config.ini", 0
     filename db "inventario.txt", 0; cadenas de strings terminada en 0
 ;al llamarse file_open pasamos dir de filename en RDI
 
+
+;seccion donde mantenemos los archivos externos
 section .text
     global _start
     extern load_config

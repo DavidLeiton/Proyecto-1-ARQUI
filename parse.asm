@@ -7,17 +7,10 @@
 %define MAX_NAME_SHIFT 5       ; log2(MAX_NAME_LEN)
 %define BUFFER_SIZE 4096
 
-;section .data
-; arrays
-;names:       times MAX_ITEMS * MAX_NAME_LEN db 0 ;i empieza en names + i*Max_name_len
-;quantities:  times MAX_ITEMS dd 0 ;array 4 B c/u, quantities[i] guarda int 32b
-;item_count:  dd 0;conteo
-
-; buffer para lectura
-;readbuf:     times BUFFER_SIZE db 0; leemos archivo
+;section .data se quito ya que genero problemas de desbordamiento de buffer
 
 section .bss
-
+;almacenamiento de datos
 names:       resb MAX_ITEMS * MAX_NAME_LEN  ;i empieza en names + i*Max_name_len
 quantities:  resd MAX_ITEMS  ;array 4 B c/u, quantities[i] guarda int 32b
 item_count:  resd 1;conteo
@@ -49,7 +42,7 @@ load_inventory:
 
 	;limpiar rsi y rdx
     mov rsi, 0 ;O_RONLY
-    mov rdx, 0
+    mov rdx, 0 ;Modo 0
 
     ; abrir archivo (file_open espera filename en rdi)rdi tiene el puntero
     call file_open
@@ -121,10 +114,8 @@ load_inventory:
 
 .colon_found:
     ; longitud producto = rsi - rbx
-    ;xor rax, rax  ;limpiar
     mov rax, rsi
     sub rax, rbx          ; rax = product_len
-    ;dec rax
     ; limitar a MAX_NAME_LEN - 1 (dejamos 1 byte para '\0')
     cmp rax, MAX_NAME_LEN - 1
     jle .calc_dest
@@ -152,21 +143,13 @@ load_inventory:
 
     cmp r9, 0
     je .term_name
-	
-    ;mov rax, r14               ;rax--posicion de destino
-    ;lea r11, [rel names]       ;r11 inicia el buffer
-    ;sub rax, r11              ; bytes escritos
-    ;cmp rax, MAX_ITEMS * MAX_NAME_LEN -1 ;verifica si nos pasamos
-    ;jae .term_name    
-
-    mov al, [r8]
+    mov al, [r8]   ;lee caracter de origen
     cmp al, ':'
     je .term_name
-    mov [r14], al ;antes rdi
-    inc r8
-    inc r14
-    dec r9
-    ;dec rcx
+    mov [r14], al ;copia destino
+    inc r8  ;avanza origen
+    inc r14  ;avanza destino
+    dec r9    ;contador decre
     jmp .copy_name_loop
 .term_name:
     mov byte [r14], 0          ; null-terminate
@@ -193,10 +176,10 @@ load_inventory:
     cmp rcx, 0
     je .store_number
 
-    mov rdx, rsi ;rdi pos actul
+    mov rdx, rsi           ;este apartado para evitar desbordamiento
     lea r11, [rel readbuf]
     sub rdx, r11
-    cmp rdx, BUFFER_SIZE - 1
+    cmp rdx, BUFFER_SIZE - 1 ;comparacion si esta en el ultimo byte
     jae .store_number
 
     mov bl, [rsi]		;caracter actual
@@ -209,7 +192,7 @@ load_inventory:
     jl .store_number
     cmp bl, '9'
     jg .store_number
-    ; rax = rax * 10 + (bl - '0')
+    
     imul rax, rax, 10 		;multiplicando por 10
     movzx rdx, bl		;convierte en ASCII a 0 a 9
     sub rdx, '0'

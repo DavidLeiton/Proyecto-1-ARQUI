@@ -71,8 +71,8 @@ draw_graph:
 	; Aqui vamos a iteramos bytes desde name_ptr hasta \0 o Max name len
 .find_name_len:
     cmp rcx, 0
-    je .name_len_done
-    mov al, [rsi]
+    je .name_len_done ;si recorre maximo termina
+    mov al, [rsi]  ;lee byte actual
     cmp al, 0
     je .name_len_done
     inc rsi
@@ -109,7 +109,6 @@ draw_graph:
 
     ; escribir color_barra (integer -> ascii) en escbuf
     mov eax, dword [rel cfg_color_barra]
-    ;mov rax, rax               ; valor en rax
     call .uint_to_ascii        ; entrada: rax=value, rdi=dest; salida: rdi=dest_after, rdx=len
     ; rdi ya avanzado, rdx = digits len
 
@@ -119,7 +118,6 @@ draw_graph:
 
     ; escribir color_fondo
     mov eax, dword [rel cfg_color_fondo]   ; es leido
-    ;mov rax, rax
     call .uint_to_ascii
 
     ; escribir 'm'
@@ -137,10 +135,10 @@ draw_graph:
     ; ---------- Obtener cantidad y preparar carácter ----------
     ; quantities address = quantities + i*4
 	;quantities es array de dd
-    mov rcx, r12
-    shl rcx, 2
-    lea rbx, [rel quantities]
-    add rcx, rbx
+    mov rcx, r12                 ;rcx indice
+    shl rcx, 2                   ;rcx = i*4
+    lea rbx, [rel quantities]    ;base del array
+    add rcx, rbx                 ;rcx = quantities[i]
     mov eax, dword [rcx]      ; eax = quantity
     cmp eax, 0
     jle .after_bar_print      ; si cantidad <=0, saltar
@@ -175,8 +173,8 @@ draw_graph:
     ; ---------- Imprimir reset ESC[0m ----------
     mov rax, 1
     mov rdi, 1
-    lea rsi, [rel reset_seq]
-    mov rdx, reset_len
+    lea rsi, [rel reset_seq]   ;secuiencia de reset
+    mov rdx, reset_len         ;len 4 bytes
     syscall
 
     ; ---------- Imprimir newline ----------
@@ -187,7 +185,7 @@ draw_graph:
     syscall
 
     ; incrementar index y seguir
-    inc r12
+    inc r12   
     jmp .loop_items
 
 .done_draw:
@@ -219,14 +217,13 @@ draw_graph:
     push rcx
     push rsi
 
-    ;lea rdi, [rel numbuf]
-    mov rbx, rdi
-    lea rsi, [rel numbuf]
-    add rsi, 15
+    mov rbx, rdi         ;rbx puntero original
+    lea rsi, [rel numbuf] ;rsi buffer temporal
+    add rsi, 15     ;al final de buffer
     mov byte [rsi], 0
-    mov rcx, 10
+    mov rcx, 10    ;divisor base 10
     
-    ;caso especial cero, lo comentado estaba antes
+    ;caso especial cero
     test rax, rax
     jnz .convert_loop
     mov byte [rsi-1], '0'
@@ -235,80 +232,28 @@ draw_graph:
     jmp .copy_digits
 
 .convert_loop:
-    xor rdx, rdx
-    div rcx
+    xor rdx, rdx   ;limpia rdx
+    div rcx        ;rax cociente y rdx residuo
     add dl, '0'
-    dec rsi
-    mov [rsi], dl
+    dec rsi        ;retrocede en buffer
+    mov [rsi], dl   ;almacena digito
     test rax, rax
     jnz .convert_loop
 
     ;calcular longitud
 
-    lea rdx, [rel numbuf+16]
-    sub rdx, rsi
+    lea rdx, [rel numbuf+16]  ;fin del buffer
+    sub rdx, rsi               ;longitud en bytes
 .copy_digits:
-    mov rcx, rdx
-    mov rdi, rbx
-    rep movsb
+    mov rcx, rdx           ;rcx longitud
+    mov rdi, rbx           ;rdi destino original
+    rep movsb               ; se copian digitos en buffer temporal
 
-    mov rdi, rbx
-    add rdi, rdx
-   
+    mov rdi, rbx         ;rdi destino original
+    add rdi, rdx          ;dest+longitud
+   ;devolvemos
     pop r14
     pop rsi
     pop rcx
     pop rbx
     ret
-
-    
-    ;cmp rax, 0
-    ;jne .itoa_nonzero
-    ; escribir '0'
-    ;mov byte [rbx], '0'
-    ;lea rdi, [rbx + 1]
-    ;inc rdi
-    ;mov rdx, 1
-   ; ret
-    ;jmp .copy_final
-
-;.itoa_nonzero:
-;    lea rsi, [rel numbuf]   ; rsi = buffer temporal de inicio
-;    xor rcx, rcx            ; rcx = digito contador
-
-;.itoa_loop:
-;    xor rdx, rdx            ; limpia rdx por  div
-;    mov r15, 10
-;    div r15                 ; rax = quot, rdx = rem
-;    add dl, '0'             ; convertir  rem -> ascii digito en  dl
-;    mov [rsi], dl
-;    inc rsi
-;    inc rcx
-;    test rax, rax;cmp rax, 0
-;    jne .itoa_loop
-
-    ; rcx = digit count, rsi = ptr despues del ultimo digito guardadoc(digitos guardados reservados)
- ;   mov rdx, rcx            ; guarda contador en r14
- ;   dec rsi                 ; punto al ultimo digito 
-
- ;   mov rdi, rbx            ; puntero de destino en rbx
-
-;.rev_copy_loop:
-;    mov al, [rsi]
-;    mov [rsi], al ; antes rbx
-;    dec rsi
-;    inc rdi
-;    dec rcx    ;r14
-;    jnz .rev_copy_loop
-    
-
-;.copy_final:
-;    pop rsi
-;    pop rcx
-;    pop rbx
-;    pop r15
-;    ret
-   
-
-
-

@@ -19,6 +19,7 @@ reset_seq:      db 27, '[', '0', 'm'     ; ESC[0m, secuencia ANSI
 reset_len       equ $-reset_seq      ;Sirve para restaurar colores
 default_char:   db '*'			;si no se usa barra
 default_char_len equ 1			;longitud fija 1 B
+space_char:     db " ", 0   ;espacio separador
       
 
 section .bss
@@ -170,6 +171,34 @@ draw_graph:
     jmp .print_char_loop
 
 .after_bar_print:
+
+    ;imprimir espacio separador
+    mov rax, 1
+    mov rdi, 1
+    lea rsi, [rel space_char]   
+    mov rdx, 1         
+    syscall
+
+
+    ; === IMPRIMIR VALOR NUMÉRICO ===
+    ; Recalcular dirección de la cantidad actual (índice todavía en R12)
+    mov rax, r12               ; RAX = índice actual
+    shl rax, 2                 ; RAX = i * 4
+    lea rbx, [rel quantities]  ; RBX = base del array
+    add rbx, rax               ; RBX = &quantities[i]
+    mov eax, dword [rbx]       ; EAX = cantidad
+    
+    ; Convertir número a ASCII
+    lea rdi, [rel numbuf]      ; Buffer temporal
+    call .uint_to_ascii        ; RAX contendrá la longitud
+    
+    ; Imprimir el número (RAX = longitud retornada por uint_to_ascii)
+    mov rdx, rax               ; Longitud del número
+    mov rax, 1                 ; sys_write
+    mov rdi, 1                 ; stdout
+    lea rsi, [rel numbuf]      ; Número en ASCII
+    syscall
+
     ; ---------- Imprimir reset ESC[0m ----------
     mov rax, 1
     mov rdi, 1
@@ -248,6 +277,10 @@ draw_graph:
     mov rcx, rdx           ;rcx longitud
     mov rdi, rbx           ;rdi destino original
     rep movsb               ; se copian digitos en buffer temporal
+
+    ;retornar longitud
+
+    mov rax, rdx
 
     mov rdi, rbx         ;rdi destino original
     add rdi, rdx          ;dest+longitud
